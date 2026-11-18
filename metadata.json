@@ -1,6 +1,0 @@
-{
-  "name": "Undici — Formazioni Calcio Amatoriale",
-  "description": "Gestisci la rosa della tua squadra di calcio amatoriale, scegli il modulo, compila la formazione stile fantacalcio, salva le formazioni preferite ed esporta lo screenshot per WhatsApp.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
