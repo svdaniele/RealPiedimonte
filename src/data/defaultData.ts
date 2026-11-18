@@ -49,7 +49,7 @@ export const DEFAULT_PLAYERS: Player[] = [
   { id: 'p-imp-1795016951287-20', name: 'Simone Torino', shirtName: 'Torino', number: 11, role: PlayerRole.ATT, foot: 'DX', available: true, note: '' },
   { id: 'p-imp-1795016951287-21', name: 'Marcello Pirolozzi', shirtName: 'Pirolozzi', number: 11, role: PlayerRole.ATT, foot: 'SX', available: true, note: '' },
   { id: 'p-imp-1795016951287-22', name: 'Alessandro Di Pietro', shirtName: 'Pietro', number: 17, role: PlayerRole.ATT, foot: 'DX', available: false, note: '' },
-  { id: 'p-imp-1795016951287-23', name: 'Isidoro Isidoro', shirtName: 'Isidoro', number: 22, role: PlayerRole.ATT, foot: 'SX', available: true, note: '' },
+  { id: 'p-imp-1795016951287-23', name: 'Isidoro D\'Amico', shirtName: 'D\'Amico', number: 22, role: PlayerRole.ATT, foot: 'SX', available: true, note: '' },
   { id: 'p-imp-1795016951287-24', name: 'Luca Mennillo', shirtName: 'Mennillo', number: 23, role: PlayerRole.ATT, foot: 'DX', available: true, note: '' },
 ];
 
