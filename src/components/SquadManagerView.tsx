@@ -1,34 +1,26 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Check,
-  Copy,
-  Download,
   Edit3,
+  FileText,
   Plus,
   Search,
   Trash2,
-  Upload,
   UserCheck,
   UserX,
   X,
 } from 'lucide-react';
 import { ROLE_META } from '../data/formations';
 import { Player, PlayerRole, PreferredFoot } from '../types';
-import {
-  formatRosterForExport,
-  parseRosterImport,
-  RosterExportFormat,
-} from '../utils/storage';
+import { parseBulkRosterText } from '../utils/storage';
 
 interface SquadManagerViewProps {
   players: Player[];
-  teamName: string;
   onAddPlayer: (player: Omit<Player, 'id'>) => void;
-  onBulkAddPlayers: (players: Player[], replaceExisting: boolean) => void;
+  onBulkAddPlayers: (players: Player[]) => void;
   onUpdatePlayer: (player: Player) => void;
   onDeletePlayer: (playerId: string) => void;
   onToggleAvailability: (playerId: string) => void;
-  onNotify: (message: string) => void;
 }
 
 const ROLE_ORDER: PlayerRole[] = [
@@ -40,13 +32,11 @@ const ROLE_ORDER: PlayerRole[] = [
 
 export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
   players,
-  teamName,
   onAddPlayer,
   onBulkAddPlayers,
   onUpdatePlayer,
   onDeletePlayer,
   onToggleAvailability,
-  onNotify,
 }) => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<'ALL' | PlayerRole>('ALL');
@@ -54,12 +44,7 @@ export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [bulkText, setBulkText] = useState('');
-  const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportFormat, setExportFormat] = useState<RosterExportFormat>('json');
-  const [copiedExport, setCopiedExport] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   // Form fields
   const [name, setName] = useState('');
@@ -164,71 +149,14 @@ export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
     setEditingPlayer(null);
   };
 
-  const parsedImport = useMemo(
-    () => parseRosterImport(bulkText, players, importMode === 'replace'),
-    [bulkText, players, importMode]
-  );
-
-  const exportedContent = useMemo(
-    () => formatRosterForExport(players, exportFormat, teamName),
-    [players, exportFormat, teamName]
-  );
-
   const handleBulkImport = (e: React.FormEvent) => {
     e.preventDefault();
-    if (parsedImport.players.length > 0) {
-      onBulkAddPlayers(parsedImport.players, importMode === 'replace');
+    const parsed = parseBulkRosterText(bulkText, players);
+    if (parsed.length > 0) {
+      onBulkAddPlayers(parsed);
       setBulkText('');
       setShowBulkModal(false);
     }
-  };
-
-  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setBulkText(reader.result);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
-
-  const handleCopyExport = async () => {
-    try {
-      await navigator.clipboard.writeText(exportedContent);
-      setCopiedExport(true);
-      onNotify(`Rosa copiata in formato ${exportFormat.toUpperCase()}`);
-      setTimeout(() => setCopiedExport(false), 2200);
-    } catch {
-      onNotify('Impossibile copiare automaticamente: usa Scarica file');
-    }
-  };
-
-  const handleDownloadExport = () => {
-    const slug =
-      teamName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '') || 'squadra';
-    const metaByFormat: Record<RosterExportFormat, { ext: string; mime: string }> = {
-      json: { ext: 'json', mime: 'application/json;charset=utf-8' },
-      csv: { ext: 'csv', mime: 'text/csv;charset=utf-8' },
-      text: { ext: 'txt', mime: 'text/plain;charset=utf-8' },
-    };
-    const { ext, mime } = metaByFormat[exportFormat];
-    const blob = new Blob([exportedContent], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `rosa-${slug}.${ext}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    onNotify(`Rosa esportata in rosa-${slug}.${ext}`);
   };
 
   const totalAvailable = players.filter((p) => p.available).length;
@@ -253,23 +181,14 @@ export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowExportModal(true)}
-            disabled={players.length === 0}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-[#111815] bg-white hover:bg-[#F2F5F2] disabled:opacity-40 border border-[#DCE1DC] rounded-xl transition-colors whitespace-nowrap cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-[#52605A]" />
-            Esporta rosa
-          </button>
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setShowBulkModal(true)}
             className="inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-[#111815] bg-white hover:bg-[#F2F5F2] border border-[#DCE1DC] rounded-xl transition-colors whitespace-nowrap cursor-pointer"
           >
-            <Upload className="w-4 h-4 text-[#52605A]" />
-            Importa rosa
+            <FileText className="w-4 h-4 text-[#52605A]" />
+            Importa da testo
           </button>
           <button
             type="button"
@@ -629,138 +548,21 @@ export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
         </div>
       )}
 
-      {/* Export Roster Modal (JSON / CSV / Text — All Re-Importable) */}
-      {showExportModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="export-roster-title"
-        >
-          <div className="w-full max-w-2xl bg-white rounded-2xl border border-[#E2E6E1] shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#ECEFEA]">
-              <div>
-                <h2
-                  id="export-roster-title"
-                  className="font-athletic text-2xl font-bold text-[#111815]"
-                >
-                  Esporta Rosa Ri-importabile
-                </h2>
-                <p className="text-xs text-[#52605A]">
-                  Tutti i formati possono essere re-importati direttamente da &ldquo;Importa rosa&rdquo;
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowExportModal(false)}
-                aria-label="Chiudi esportazione rosa"
-                className="p-2 text-[#52605A] hover:text-[#111815] hover:bg-[#F2F5F2] rounded-lg cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-3 gap-1.5 p-1 bg-[#F2F4F1] rounded-xl">
-                {(
-                  [
-                    { id: 'json', label: 'JSON (completo)' },
-                    { id: 'csv', label: 'CSV (Excel)' },
-                    { id: 'text', label: 'Testo (WhatsApp)' },
-                  ] as const
-                ).map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setExportFormat(opt.id)}
-                    className={`py-2 px-2 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                      exportFormat === opt.id
-                        ? 'bg-white text-[#111815] shadow-xs'
-                        : 'text-[#52605A] hover:text-[#111815]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              <p className="text-xs text-[#52605A]">
-                {exportFormat === 'json' &&
-                  'Conserva tutti i campi (ID, nome maglia, piede, disponibilità e note) per un ripristino identico al 100%.'}
-                {exportFormat === 'csv' &&
-                  'Tabella con separatore ";" apribile in Excel o Google Fogli e ri-importabile con tutti i dettagli.'}
-                {exportFormat === 'text' &&
-                  'Elenco compatto (numero, nome, ruolo) ideale da modificare velocemente o condividere su WhatsApp.'}
-              </p>
-
-              <textarea
-                readOnly
-                rows={10}
-                value={exportedContent}
-                onFocus={(e) => e.currentTarget.select()}
-                className="w-full p-3.5 text-xs font-mono bg-[#F5F6F4] border border-[#DCE1DC] rounded-xl text-[#111815] outline-none resize-none roster-scroll"
-              />
-
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                <span className="text-xs text-[#52605A]">
-                  <strong className="font-mono tabular-nums text-[#111815]">
-                    {players.length}
-                  </strong>{' '}
-                  calciatori pronti per l&rsquo;esportazione
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleCopyExport}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-[#111815] bg-[#F2F5F2] hover:bg-[#E5ECE6] rounded-xl transition-colors whitespace-nowrap cursor-pointer"
-                  >
-                    {copiedExport ? (
-                      <>
-                        <Check className="w-4 h-4 text-[#15803D]" />
-                        Copiato
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copia
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDownloadExport}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold bg-[#15803D] hover:bg-[#166534] text-white rounded-xl transition-colors whitespace-nowrap cursor-pointer"
-                  >
-                    <Download className="w-4 h-4" />
-                    Scarica .{exportFormat === 'text' ? 'txt' : exportFormat}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Import Roster Modal (Accepts JSON, CSV, or Plain Text + File Upload) */}
+      {/* Bulk Text Import Modal */}
       {showBulkModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-xs"
           role="dialog"
           aria-modal="true"
-          aria-labelledby="import-roster-title"
         >
           <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E2E6E1] shadow-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#ECEFEA]">
               <div>
-                <h2
-                  id="import-roster-title"
-                  className="font-athletic text-2xl font-bold text-[#111815]"
-                >
-                  Importa Rosa
+                <h2 className="font-athletic text-2xl font-bold text-[#111815]">
+                  Importa Lista da WhatsApp
                 </h2>
                 <p className="text-xs text-[#52605A]">
-                  Incolla o carica un file JSON, CSV oppure un elenco testuale da WhatsApp
+                  Incolla un giocatore per riga: numero e ruolo (POR/DIF/CEN/ATT) sono opzionali
                 </p>
               </div>
               <button
@@ -773,71 +575,21 @@ export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
             </div>
 
             <form onSubmit={handleBulkImport} className="p-5 space-y-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-1 p-1 bg-[#F2F4F1] rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setImportMode('append')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                      importMode === 'append'
-                        ? 'bg-white text-[#111815] shadow-xs'
-                        : 'text-[#52605A] hover:text-[#111815]'
-                    }`}
-                  >
-                    Aggiungi alla rosa
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImportMode('replace')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
-                      importMode === 'replace'
-                        ? 'bg-white text-[#111815] shadow-xs'
-                        : 'text-[#52605A] hover:text-[#111815]'
-                    }`}
-                  >
-                    Sostituisci attuale
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => importFileRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-[#111815] bg-[#F2F5F2] hover:bg-[#E5ECE6] rounded-xl transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  Carica file (.json, .csv, .txt)
-                </button>
-                <input
-                  ref={importFileRef}
-                  type="file"
-                  accept=".json,.csv,.txt,application/json,text/csv,text/plain"
-                  onChange={handleImportFileChange}
-                  className="hidden"
-                />
-              </div>
-
               <textarea
-                rows={8}
+                rows={7}
                 required
                 value={bulkText}
                 onChange={(e) => setBulkText(e.target.value)}
-                placeholder={'Incolla JSON, CSV oppure testo semplice:\n1 Luca Rossi POR\n4 Matteo Bianchi DIF\n8 Paolo Verdi CEN\n10 Andrea Neri ATT'}
-                className="w-full p-3.5 text-xs font-mono bg-[#F5F6F4] border border-[#DCE1DC] focus:border-[#15803D] focus:bg-white rounded-xl outline-none resize-none roster-scroll"
+                placeholder={'1 Luca Rossi POR\n4 Matteo Bianchi DIF\n8 Paolo Verdi CEN\n10 Andrea Neri ATT\nFabio Conti'}
+                className="w-full p-3.5 text-sm font-mono bg-[#F5F6F4] border border-[#DCE1DC] focus:border-[#15803D] focus:bg-white rounded-xl outline-none resize-none"
               />
-
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs text-[#52605A]">
                   Rilevati:{' '}
                   <strong className="font-mono tabular-nums text-[#111815]">
-                    {parsedImport.players.length}
+                    {parseBulkRosterText(bulkText, players).length}
                   </strong>{' '}
                   calciatori
-                  {parsedImport.detectedFormat && (
-                    <span className="text-[#15803D] font-semibold">
-                      {' '}
-                      · Formato {parsedImport.detectedFormat.toUpperCase()}
-                    </span>
-                  )}
                 </span>
                 <div className="flex items-center gap-2">
                   <button
@@ -849,10 +601,10 @@ export const SquadManagerView: React.FC<SquadManagerViewProps> = ({
                   </button>
                   <button
                     type="submit"
-                    disabled={parsedImport.players.length === 0}
+                    disabled={parseBulkRosterText(bulkText, players).length === 0}
                     className="px-5 py-2.5 text-sm font-semibold bg-[#15803D] hover:bg-[#166534] disabled:opacity-40 text-white rounded-xl transition-colors cursor-pointer"
                   >
-                    {importMode === 'replace' ? 'Sostituisci rosa' : 'Importa in rosa'}
+                    Importa in rosa
                   </button>
                 </div>
               </div>

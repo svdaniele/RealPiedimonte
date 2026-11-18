@@ -486,27 +486,9 @@ export default function App() {
     showToast(`${created.name} aggiunto alla rosa`);
   };
 
-  const handleBulkAddPlayers = (imported: Player[], replaceExisting: boolean) => {
-    if (replaceExisting) {
-      const validIds = new Set(imported.map((p) => p.id));
-      setPlayers(imported);
-      setActiveLineup((prev) => {
-        const nextStarters: Record<string, string> = {};
-        for (const [sid, pid] of Object.entries(prev.starters)) {
-          if (validIds.has(pid)) nextStarters[sid] = pid;
-        }
-        return {
-          ...prev,
-          starters: nextStarters,
-          bench: prev.bench.filter((id) => validIds.has(id)),
-          captainId: prev.captainId && validIds.has(prev.captainId) ? prev.captainId : null,
-        };
-      });
-      showToast(`Rosa sostituita con ${imported.length} calciatori`);
-    } else {
-      setPlayers((prev) => [...prev, ...imported]);
-      showToast(`Importati ${imported.length} calciatori in rosa`);
-    }
+  const handleBulkAddPlayers = (imported: Player[]) => {
+    setPlayers((prev) => [...prev, ...imported]);
+    showToast(`Importati ${imported.length} calciatori in rosa`);
   };
 
   const handleUpdatePlayer = (updated: Player) => {
@@ -973,13 +955,11 @@ export default function App() {
         {activeTab === 'rosa' && (
           <SquadManagerView
             players={players}
-            teamName={teamSettings.name}
             onAddPlayer={handleAddPlayer}
             onBulkAddPlayers={handleBulkAddPlayers}
             onUpdatePlayer={handleUpdatePlayer}
             onDeletePlayer={handleDeletePlayer}
             onToggleAvailability={handleToggleAvailability}
-            onNotify={showToast}
           />
         )}
 
